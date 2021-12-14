@@ -14,7 +14,7 @@ from flask_migrate import Migrate
 from flask_wtf import Form
 from forms import *
 import sys
-from sqlalchemy import and_
+from sqlalchemy import func
 #----------------------------------------------------------------------------#
 # App Config.
 #----------------------------------------------------------------------------#
@@ -142,16 +142,13 @@ def venues():
 
 @app.route('/venues/search', methods=['POST'])
 def search_venues():
-  # TODO: implement search on artists with partial string search. Ensure it is case-insensitive.
+  # TODOdone: implement search on artists with partial string search. Ensure it is case-insensitive.
   # seach for Hop should return "The Musical Hop".
   # search for "Music" should return "The Musical Hop" and "Park Square Live Music & Coffee"
+  data = [dict(d) for d in db.session.query(Venue.id, Venue.name, func.count(Show.start_time).label("num_upcoming_shows")).filter(Venue.name.ilike("%" + request.form.get('search_term', '') + "%")).join(Show, (Show.venue_id == Venue.id) & (Show.start_time > datetime.now()), isouter=True).group_by(Venue.id, Venue.name)]
   response={
-    "count": 1,
-    "data": [{
-      "id": 2,
-      "name": "The Dueling Pianos Bar",
-      "num_upcoming_shows": 0,
-    }]
+    "count": len(data),
+    "data": data
   }
   return render_template('pages/search_venues.html', results=response, search_term=request.form.get('search_term', ''))
 
