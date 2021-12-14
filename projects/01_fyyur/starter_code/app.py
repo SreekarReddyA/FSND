@@ -106,6 +106,9 @@ def index():
 def venues():
   # TODO: replace with real venues data.
   #       num_upcoming_shows should be aggregated based on number of upcoming shows per venue.
+  data_query=db.session.query(Venue)
+  data2= data_query.join(Show, Show.venue_id == Venue.id, isouter=True).all()
+  print(data2)
   data=[{
     "city": "San Francisco",
     "state": "CA",
@@ -249,7 +252,7 @@ def create_venue_submission():
   facebook_link=form_data["facebook_link"]
   image_link=form_data["image_link"]
   website_link=form_data["website_link"]
-  seeking_talent=True if form_data["seeking_talent"] == "y" else False
+  seeking_talent=True if "seeking_talent" in form_data and form_data["seeking_talent"] == "y" else False
   seeking_description=form_data["seeking_description"]
   venue=Venue(
     name=name, city=city, state=state,address=address,
@@ -470,14 +473,43 @@ def create_artist_form():
 @app.route('/artists/create', methods=['POST'])
 def create_artist_submission():
   # called upon submitting the new artist listing form
-  # TODO: insert form data as a new Venue record in the db, instead
-  # TODO: modify data to be the data object returned from db insertion
+  # TODOdone: insert form data as a new Venue record in the db, instead
+  # TODOdone: modify data to be the data object returned from db insertion
 
+  name = request.form['name']
+  city = request.form['city']
+  state = request.form['state']
+  phone = request.form['phone']
+  genres = request.form['genres']
+  image_link = request.form['image_link']
+  facebook_link = request.form['facebook_link']
+  website_link = request.form['website_link']
+  seeking_venue = True if "seeking_venue" in request.form and request.form['seeking_venue'] == 'y' else False
+  seeking_description = request.form['seeking_description']
+
+  artist=Artist(
+    name=name, city=city, state=state,genres=genres,
+    phone=phone,image_link=image_link,website_link=website_link,
+    seeking_venue=seeking_venue,facebook_link=facebook_link,
+    seeking_description=seeking_description)
+
+  try:
+    db.session.add(artist)
+    db.session.commit()
+    # TODOdone: modify data to be the data object returned from db insertion
+    db.session.refresh(artist)
+    # on successful db insert, flash success
+    flash('Artist ' + request.form['name'] + ' was successfully listed!')
+  except:
+    error = True
+    db.session.rollback()
+    # TODOdone: on unsuccessful db insert, flash an error instead.
+    flash('An error occurred. Artist ' + request.form["name"].name + ' could not be listed.')
+    print(sys.exc_info())
+  finally:
+    db.session.close()
+    return render_template('pages/home.html')
   # on successful db insert, flash success
-  flash('Artist ' + request.form['name'] + ' was successfully listed!')
-  # TODO: on unsuccessful db insert, flash an error instead.
-  # e.g., flash('An error occurred. Artist ' + data.name + ' could not be listed.')
-  return render_template('pages/home.html')
 
 
 #  Shows
@@ -486,43 +518,47 @@ def create_artist_submission():
 @app.route('/shows')
 def shows():
   # displays list of shows at /shows
-  # TODO: replace with real venues data.
-  data=[{
-    "venue_id": 1,
-    "venue_name": "The Musical Hop",
-    "artist_id": 4,
-    "artist_name": "Guns N Petals",
-    "artist_image_link": "https://images.unsplash.com/photo-1549213783-8284d0336c4f?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=300&q=80",
-    "start_time": "2019-05-21T21:30:00.000Z"
-  }, {
-    "venue_id": 3,
-    "venue_name": "Park Square Live Music & Coffee",
-    "artist_id": 5,
-    "artist_name": "Matt Quevedo",
-    "artist_image_link": "https://images.unsplash.com/photo-1495223153807-b916f75de8c5?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=334&q=80",
-    "start_time": "2019-06-15T23:00:00.000Z"
-  }, {
-    "venue_id": 3,
-    "venue_name": "Park Square Live Music & Coffee",
-    "artist_id": 6,
-    "artist_name": "The Wild Sax Band",
-    "artist_image_link": "https://images.unsplash.com/photo-1558369981-f9ca78462e61?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=794&q=80",
-    "start_time": "2035-04-01T20:00:00.000Z"
-  }, {
-    "venue_id": 3,
-    "venue_name": "Park Square Live Music & Coffee",
-    "artist_id": 6,
-    "artist_name": "The Wild Sax Band",
-    "artist_image_link": "https://images.unsplash.com/photo-1558369981-f9ca78462e61?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=794&q=80",
-    "start_time": "2035-04-08T20:00:00.000Z"
-  }, {
-    "venue_id": 3,
-    "venue_name": "Park Square Live Music & Coffee",
-    "artist_id": 6,
-    "artist_name": "The Wild Sax Band",
-    "artist_image_link": "https://images.unsplash.com/photo-1558369981-f9ca78462e61?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=794&q=80",
-    "start_time": "2035-04-15T20:00:00.000Z"
-  }]
+  # TODOdone: replace with real venues data.
+  # data_query = db.session.query(Show.venue_id, Venue.name.label("venue_name"), Artist.name.label("artist_name"), Artist.id.label("artist_id"), Artist.image_link.label("artist_image_link")).join(Venue).join(Artist).all()
+  data=[dict(d) for d in db.session.query(Show.venue_id, Venue.name.label("venue_name"), Show.artist_id, Artist.name.label("artist_name"), Artist.image_link.label("artist_image_link"), Show.start_time).join(Venue).join(Artist).all()]
+  for d in data:
+    d["start_time"] = str(d["start_time"])
+  # data=[{
+  #   "venue_id": 1,
+  #   "venue_name": "The Musical Hop",
+  #   "artist_id": 4,
+  #   "artist_name": "Guns N Petals",
+  #   "artist_image_link": "https://images.unsplash.com/photo-1549213783-8284d0336c4f?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=300&q=80",
+  #   "start_time": "2019-05-21T21:30:00.000Z"
+  # }, {
+  #   "venue_id": 3,
+  #   "venue_name": "Park Square Live Music & Coffee",
+  #   "artist_id": 5,
+  #   "artist_name": "Matt Quevedo",
+  #   "artist_image_link": "https://images.unsplash.com/photo-1495223153807-b916f75de8c5?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=334&q=80",
+  #   "start_time": "2019-06-15T23:00:00.000Z"
+  # }, {
+  #   "venue_id": 3,
+  #   "venue_name": "Park Square Live Music & Coffee",
+  #   "artist_id": 6,
+  #   "artist_name": "The Wild Sax Band",
+  #   "artist_image_link": "https://images.unsplash.com/photo-1558369981-f9ca78462e61?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=794&q=80",
+  #   "start_time": "2035-04-01T20:00:00.000Z"
+  # }, {
+  #   "venue_id": 3,
+  #   "venue_name": "Park Square Live Music & Coffee",
+  #   "artist_id": 6,
+  #   "artist_name": "The Wild Sax Band",
+  #   "artist_image_link": "https://images.unsplash.com/photo-1558369981-f9ca78462e61?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=794&q=80",
+  #   "start_time": "2035-04-08T20:00:00.000Z"
+  # }, {
+  #   "venue_id": 3,
+  #   "venue_name": "Park Square Live Music & Coffee",
+  #   "artist_id": 6,
+  #   "artist_name": "The Wild Sax Band",
+  #   "artist_image_link": "https://images.unsplash.com/photo-1558369981-f9ca78462e61?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=794&q=80",
+  #   "start_time": "2035-04-15T20:00:00.000Z"
+  # }]
   return render_template('pages/shows.html', shows=data)
 
 @app.route('/shows/create')
@@ -533,15 +569,35 @@ def create_shows():
 
 @app.route('/shows/create', methods=['POST'])
 def create_show_submission():
+  artist_id = request.form['artist_id']
+  venue_id = request.form['venue_id']
+  start_time = request.form['start_time']
+
+  show=Show(artist_id=artist_id, venue_id=venue_id, start_time=start_time)
+
+  try:
+    db.session.add(show)
+    db.session.commit()
+  # TODOdone: insert form data as a new Show record in the db, instead
+    db.session.refresh(show)
+  # on successful db insert, flash success
+    flash('Show was successfully listed!')
+  except:
+    error = True
+    db.session.rollback()
+    # TODOdone: on unsuccessful db insert, flash an error instead.
+    flash('An error occurred. Show could not be listed.')
+    print(sys.exc_info())
+  finally:
+    db.session.close()
+    return render_template('pages/home.html')
   # called to create new shows in the db, upon submitting new show listing form
-  # TODO: insert form data as a new Show record in the db, instead
+  
 
   # on successful db insert, flash success
-  flash('Show was successfully listed!')
-  # TODO: on unsuccessful db insert, flash an error instead.
-  # e.g., flash('An error occurred. Show could not be listed.')
+  
+  
   # see: http://flask.pocoo.org/docs/1.0/patterns/flashing/
-  return render_template('pages/home.html')
 
 @app.errorhandler(404)
 def not_found_error(error):
